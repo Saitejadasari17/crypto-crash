@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Crypto Crash</title>
+</head>
+<body>
+  <h1>Crypto Crash Game</h1>
+  <p id="status">Status: Not connected</p>
+
+  <!-- Include Socket.IO client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io(); // this auto-connects to the same host and port
+
+    socket.on('connect', () => {
+      document.getElementById('status').textContent = 'Status: Connected!';
+    });
+
+    socket.on('message', (msg) => {
+      console.log('Message from server:', msg);
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('status').textContent = 'Status: Disconnected';
+    });
+  </script>
+</body>
+</html>
