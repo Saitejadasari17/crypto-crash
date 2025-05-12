@@ -7,10 +7,10 @@
   <h1>Crypto Crash Game</h1>
   <p id="status">Status: Not connected</p>
 
-  <!-- Include Socket.IO client -->
+  <!-- Load Socket.IO client -->
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io(); // this auto-connects to the same host and port
+    const socket = io();
 
     socket.on('connect', () => {
       document.getElementById('status').textContent = 'Status: Connected!';
