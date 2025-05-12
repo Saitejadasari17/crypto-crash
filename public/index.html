@@ -1,203 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crypto Crash Game</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', sans-serif;
-      background: url('./buy_and_sell_global.webp') no-repeat center center fixed;
-      background-size: cover;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-    }
-
-    .container {
-      backdrop-filter: blur(10px);
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 20px;
-      margin-top: 60px;
-      padding: 30px;
-      width: 90%;
-      max-width: 500px;
-    }
-
-    .title {
-      font-size: 28px;
-      text-align: center;
-      margin-bottom: 20px;
-      font-weight: 600;
-    }
-
-    .balance-section, .conversion, .status, .controls {
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .balance-value {
-      font-size: 24px;
-      font-weight: 600;
-      color: #00ffa6;
-    }
-
-    input[type="number"] {
-      padding: 10px;
-      width: 100%;
-      border-radius: 10px;
-      border: none;
-      margin-top: 10px;
-      font-size: 18px;
-    }
-
-    button {
-      background-color: #00bcd4;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      padding: 12px 20px;
-      font-size: 18px;
-      cursor: pointer;
-      width: 100%;
-    }
-
-    button:hover {
-      background-color: #0097a7;
-    }
-
-    .status p {
-      font-size: 18px;
-      margin: 0;
-    }
-
-    .crypto-graph {
-      margin-top: 20px;
-      border-radius: 15px;
-      overflow: hidden;
-    }
-
-    .crypto-graph img {
-      width: 100%;
-      height: auto;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Crash Game</title>
+    <style>
+        /* Basic styles */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .game-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            border: 1px solid #000;
+        }
+        #flight {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            background-color: red;
+            border-radius: 50%;
+        }
+        .status-text {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        #multiplierText {
+            font-size: 24px;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="title">Crypto Crash Game</div>
 
-    <div class="balance-section">
-      <p>Your Balance</p>
-      <div class="balance-value" id="balance">$1000</div>
-    </div>
+<div class="game-container">
+    <div id="flight"></div>
+</div>
 
-    <div class="conversion">
-      <p>Converted to BTC: <span id="btcValue">0.000000</span></p>
-    </div>
+<div class="controls">
+    <input type="number" id="betAmount" placeholder="Enter Bet Amount" />
+    <button id="placeBtn" onclick="startGame()">Place Bet</button>
+    <button id="cashOutBtn" onclick="cashOut()" style="display:none;">Cash Out</button>
+</div>
 
-    <div class="controls">
-      <input type="number" id="betAmount" placeholder="Enter bet amount in USD" min="1" />
-      <button id="placeBtn" onclick="startGame()">Place Bet</button>
-      <button id="cashOutBtn" onclick="cashOut()" style="display: none; margin-top: 10px;">Cash Out</button>
-    </div>
+<div class="status-text" id="statusText"></div>
+<div id="multiplierText"></div>
+<div class="status-text" id="balanceDisplay"></div>
 
-    <div class="status">
-      <p id="statusText">Awaiting bet...</p>
-      <p id="multiplierText" style="font-size: 22px; font-weight: bold;">Multiplier: 1.00x</p>
-    </div>
-
-    <div class="crypto-graph">
-      <img src="./buy_and_sell_global.webp" alt="Crypto Trends" />
-    </div>
-  </div>
-
-  <script>
-    const BTC_RATE = 65000;
-    let balance = 1000;
-    let multiplier = 1.0;
-    let interval;
+<script>
+    let balance = 100; // Example starting balance
+    let betAmount;
+    let multiplier;
+    let hasCashedOut = false;
     let isPlaying = false;
     let crashPoint;
-    let betAmount = 0;
-    let hasCashedOut = false;
-
-    const statusText = document.getElementById('statusText');
-    const multiplierText = document.getElementById('multiplierText');
-    const btcDisplay = document.getElementById('btcValue');
-    const balanceDisplay = document.getElementById('balance');
-    const betInput = document.getElementById('betAmount');
-    const placeBtn = document.getElementById('placeBtn');
-    const cashOutBtn = document.getElementById('cashOutBtn');
-
+    let interval;
+    let flight = document.getElementById('flight');
+    let multiplierText = document.getElementById('multiplierText');
+    let statusText = document.getElementById('statusText');
+    let balanceDisplay = document.getElementById('balanceDisplay');
+    const BTC_RATE = 20000; // Example BTC rate for conversion
     balanceDisplay.textContent = `$${balance.toFixed(2)}`;
 
     function startGame() {
-      betAmount = parseFloat(betInput.value);
+        betAmount = parseFloat(document.getElementById('betAmount').value);
 
-      if (isNaN(betAmount) || betAmount <= 0) {
-        statusText.textContent = 'Please enter a valid bet amount.';
-        return;
-      }
-
-      if (betAmount > balance) {
-        statusText.textContent = 'Insufficient balance.';
-        return;
-      }
-
-      multiplier = 1.00;
-      hasCashedOut = false;
-      isPlaying = true;
-      crashPoint = (Math.random() * 5 + 1).toFixed(2);
-
-      placeBtn.style.display = 'none';
-      cashOutBtn.style.display = 'inline-block';
-      statusText.textContent = `Game started. Try to cash out before it crashes! (Crash at ${crashPoint}x)`;
-
-      interval = setInterval(() => {
-        multiplier += 0.05;
-        multiplierText.textContent = `Multiplier: ${multiplier.toFixed(2)}x`;
-
-        if (multiplier >= crashPoint) {
-          endGame(false);
+        if (isNaN(betAmount) || betAmount <= 0) {
+            statusText.textContent = 'Please enter a valid bet amount.';
+            return;
         }
-      }, 100);
+
+        if (betAmount > balance) {
+            statusText.textContent = 'Insufficient balance.';
+            return;
+        }
+
+        multiplier = 1.00;
+        hasCashedOut = false;
+        isPlaying = true;
+        crashPoint = (Math.random() * 5 + 1).toFixed(2);
+
+        document.getElementById('placeBtn').style.display = 'none';
+        document.getElementById('cashOutBtn').style.display = 'inline-block';
+        statusText.textContent = `Game started. Try to cash out before it crashes! (Crash at ${crashPoint}x)`;
+
+        // Start flight animation
+        flight.style.transition = `transform ${crashPoint * 2}s linear`;
+        flight.style.transform = `translateX(-50%) translateY(-${crashPoint * 50}px)`; // Move flight up
+
+        interval = setInterval(() => {
+            multiplier += 0.05;
+            multiplierText.textContent = `Multiplier: ${multiplier.toFixed(2)}x`;
+
+            if (multiplier >= crashPoint) {
+                endGame(false);
+                flight.style.transition = 'none'; // Stop animation at crash point
+                flight.style.transform = `translateX(-50%) translateY(-${crashPoint * 50}px)`;
+            }
+        }, 100);
     }
 
     function cashOut() {
-      if (!isPlaying || hasCashedOut) return;
+        if (!isPlaying || hasCashedOut) return;
 
-      hasCashedOut = true;
-      const winnings = betAmount * multiplier;
-      balance += winnings - betAmount;
+        hasCashedOut = true;
+        const winnings = betAmount * multiplier;
+        balance += winnings - betAmount;
 
-      endGame(true);
+        endGame(true);
     }
 
     function endGame(cashedOut) {
-      clearInterval(interval);
-      isPlaying = false;
-      cashOutBtn.style.display = 'none';
-      placeBtn.style.display = 'inline-block';
-      multiplierText.textContent = `Multiplier: ${multiplier.toFixed(2)}x`;
+        clearInterval(interval);
+        isPlaying = false;
+        document.getElementById('cashOutBtn').style.display = 'none';
+        document.getElementById('placeBtn').style.display = 'inline-block';
+        multiplierText.textContent = `Multiplier: ${multiplier.toFixed(2)}x`;
 
-      if (cashedOut) {
-        statusText.textContent = `You cashed out at ${multiplier.toFixed(2)}x! Winnings: $${(betAmount * multiplier).toFixed(2)}`;
-      } else {
-        balance -= betAmount;
-        statusText.textContent = `Crashed at ${multiplier.toFixed(2)}x. You lost $${betAmount.toFixed(2)}.`;
-      }
+        if (cashedOut) {
+            statusText.textContent = `You cashed out at ${multiplier.toFixed(2)}x! Winnings: $${(betAmount * multiplier).toFixed(2)}`;
+        } else {
+            balance -= betAmount;
+            statusText.textContent = `Crashed at ${multiplier.toFixed(2)}x. You lost $${betAmount.toFixed(2)}.`;
+        }
 
-      const convertedBTC = balance / BTC_RATE;
-      btcDisplay.textContent = convertedBTC.toFixed(6);
-      balanceDisplay.textContent = `$${balance.toFixed(2)}`;
+        const convertedBTC = balance / BTC_RATE;
+        balanceDisplay.textContent = `$${balance.toFixed(2)}`;
     }
-  </script>
+</script>
 </body>
 </html>
