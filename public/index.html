@@ -1,69 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Crypto Crash Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: url('./buy_and_sell_global.webp') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+
+    .container {
+      backdrop-filter: blur(10px);
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 20px;
+      margin-top: 60px;
+      padding: 30px;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    .title {
+      font-size: 28px;
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .balance-section, .conversion, .status, .controls {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .balance-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #00ffa6;
+    }
+
+    input[type="number"] {
+      padding: 10px;
+      width: 100%;
+      border-radius: 10px;
+      border: none;
+      margin-top: 10px;
+      font-size: 18px;
+    }
+
+    button {
+      background-color: #00bcd4;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #0097a7;
+    }
+
+    .status p {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    .crypto-graph {
+      margin-top: 20px;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+
+    .crypto-graph img {
+      width: 100%;
+      height: auto;
+    }
+  </style>
 </head>
 <body>
-  <h1>Crypto Crash Game</h1>
-  <p id="status">Status: Connecting...</p>
-  <p id="multiplier">Multiplier: x1.00</p>
-  <p id="result"></p>
-  <form id="betForm">
-    <label for="betAmount">Place Bet: </label>
-    <input type="number" id="betAmount" min="1" required>
-    <button type="submit">Place Bet</button>
-  </form>
-  <button id="cashOutBtn" disabled>Cash Out</button>
+  <div class="container">
+    <div class="title">Crypto Crash Game</div>
+
+    <div class="balance-section">
+      <p>Your Balance</p>
+      <div class="balance-value" id="balance">$1000</div>
+    </div>
+
+    <div class="conversion">
+      <p>Converted to BTC: <span id="btcValue">0.000000</span></p>
+    </div>
+
+    <div class="controls">
+      <input type="number" id="betAmount" placeholder="Enter bet amount in USD" min="1" />
+      <button id="placeBtn" onclick="startGame()">Place Bet</button>
+      <button id="cashOutBtn" onclick="cashOut()" style="display: none; margin-top: 10px;">Cash Out</button>
+    </div>
+
+    <div class="status">
+      <p id="statusText">Awaiting bet...</p>
+      <p id="multiplierText" style="font-size: 22px; font-weight: bold;">Multiplier: 1.00x</p>
+    </div>
+
+    <div class="crypto-graph">
+      <img src="./buy_and_sell_global.webp" alt="Crypto Trends" />
+    </div>
+  </div>
 
   <script>
-    const socket = new WebSocket(`ws://${window.location.host}`);
+    const BTC_RATE = 65000;
+    let balance = 1000;
+    let multiplier = 1.0;
+    let interval;
+    let isPlaying = false;
+    let crashPoint;
+    let betAmount = 0;
+    let hasCashedOut = false;
 
-    socket.onopen = () => {
-      document.getElementById('status').textContent = 'Status: Connected!';
-      console.log('WebSocket connected');
-    };
+    const statusText = document.getElementById('statusText');
+    const multiplierText = document.getElementById('multiplierText');
+    const btcDisplay = document.getElementById('btcValue');
+    const balanceDisplay = document.getElementById('balance');
+    const betInput = document.getElementById('betAmount');
+    const placeBtn = document.getElementById('placeBtn');
+    const cashOutBtn = document.getElementById('cashOutBtn');
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+    balanceDisplay.textContent = `$${balance.toFixed(2)}`;
 
-      // Handle multiplier update
-      if (data.type === 'multiplier') {
-        const multiplier = data.value.toFixed(2);
-        document.getElementById('multiplier').textContent = `Multiplier: x${multiplier}`;
+    function startGame() {
+      betAmount = parseFloat(betInput.value);
+
+      if (isNaN(betAmount) || betAmount <= 0) {
+        statusText.textContent = 'Please enter a valid bet amount.';
+        return;
       }
 
-      // Handle result after cash out or game end
-      if (data.type === 'result') {
-        document.getElementById('result').textContent = data.message;
-        document.getElementById('cashOutBtn').disabled = true;
+      if (betAmount > balance) {
+        statusText.textContent = 'Insufficient balance.';
+        return;
       }
-    };
 
-    socket.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      document.getElementById('status').textContent = 'Status: Error connecting!';
-    };
+      multiplier = 1.00;
+      hasCashedOut = false;
+      isPlaying = true;
+      crashPoint = (Math.random() * 5 + 1).toFixed(2);
 
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-      document.getElementById('status').textContent = 'Status: Disconnected';
-    };
+      placeBtn.style.display = 'none';
+      cashOutBtn.style.display = 'inline-block';
+      statusText.textContent = `Game started. Try to cash out before it crashes! (Crash at ${crashPoint}x)`;
 
-    // Handle placing a bet
-    document.getElementById('betForm').onsubmit = (e) => {
-      e.preventDefault();
-      const betAmount = parseFloat(document.getElementById('betAmount').value);
-      socket.send(JSON.stringify({ type: 'bet', amount: betAmount }));
-      document.getElementById('cashOutBtn').disabled = false;
-      document.getElementById('result').textContent = '';  // Reset result
-    };
+      interval = setInterval(() => {
+        multiplier += 0.05;
+        multiplierText.textContent = `Multiplier: ${multiplier.toFixed(2)}x`;
 
-    // Handle cashing out
-    document.getElementById('cashOutBtn').onclick = () => {
-      socket.send(JSON.stringify({ type: 'cashout' }));
-    };
+        if (multiplier >= crashPoint) {
+          endGame(false);
+        }
+      }, 100);
+    }
+
+    function cashOut() {
+      if (!isPlaying || hasCashedOut) return;
+
+      hasCashedOut = true;
+      const winnings = betAmount * multiplier;
+      balance += winnings - betAmount;
+
+      endGame(true);
+    }
+
+    function endGame(cashedOut) {
+      clearInterval(interval);
+      isPlaying = false;
+      cashOutBtn.style.display = 'none';
+      placeBtn.style.display = 'inline-block';
+      multiplierText.textContent = `Multiplier: ${multiplier.toFixed(2)}x`;
+
+      if (cashedOut) {
+        statusText.textContent = `You cashed out at ${multiplier.toFixed(2)}x! Winnings: $${(betAmount * multiplier).toFixed(2)}`;
+      } else {
+        balance -= betAmount;
+        statusText.textContent = `Crashed at ${multiplier.toFixed(2)}x. You lost $${betAmount.toFixed(2)}.`;
+      }
+
+      const convertedBTC = balance / BTC_RATE;
+      btcDisplay.textContent = convertedBTC.toFixed(6);
+      balanceDisplay.textContent = `$${balance.toFixed(2)}`;
+    }
   </script>
 </body>
 </html>
