@@ -47,9 +47,17 @@
 </div>
 
 <div class="controls">
-    <input type="number" id="betAmount" placeholder="Enter Bet Amount" />
+    <input type="number" id="betAmountUSD" placeholder="Enter Bet Amount in USD" />
+    
+    <!-- Choose currency to convert to -->
+    <select id="currencySelect">
+        <option value="BTC">Bitcoin (BTC)</option>
+        <option value="ETH">Ethereum (ETH)</option>
+    </select>
+    
     <button id="placeBtn" onclick="startGame()">Place Bet</button>
     <button id="cashOutBtn" onclick="cashOut()" style="display:none;">Cash Out</button>
+    <button id="withdrawBtn" onclick="withdraw()" style="display:none;">Withdraw</button>
 </div>
 
 <div class="status-text" id="statusText"></div>
@@ -57,8 +65,9 @@
 <div class="status-text" id="balanceDisplay"></div>
 
 <script>
-    let balance = 100; // Example starting balance
-    let betAmount;
+    let balance = 100; // Example starting balance in USD
+    let betAmountUSD;
+    let betAmountCrypto;
     let multiplier;
     let hasCashedOut = false;
     let isPlaying = false;
@@ -68,20 +77,50 @@
     let multiplierText = document.getElementById('multiplierText');
     let statusText = document.getElementById('statusText');
     let balanceDisplay = document.getElementById('balanceDisplay');
-    const BTC_RATE = 20000; // Example BTC rate for conversion
-    balanceDisplay.textContent = `$${balance.toFixed(2)}`;
+
+    // Hardcoded conversion rates (use real-time data in production)
+    const BTC_RATE = 20000;  // 1 BTC = 20,000 USD
+    const ETH_RATE = 1500;   // 1 ETH = 1,500 USD
+    
+    let selectedCurrency = 'USD'; // Default to USD for the initial balance display
+    let currentBalanceCrypto = 0; // Hold the balance in selected cryptocurrency
+
+    // Update balance display function
+    function updateBalanceDisplay() {
+        if (selectedCurrency === 'USD') {
+            balanceDisplay.textContent = `$${balance.toFixed(2)}`;
+        } else if (selectedCurrency === 'BTC') {
+            balanceDisplay.textContent = `${(currentBalanceCrypto).toFixed(6)} BTC`;
+        } else if (selectedCurrency === 'ETH') {
+            balanceDisplay.textContent = `${(currentBalanceCrypto).toFixed(6)} ETH`;
+        }
+    }
+
+    updateBalanceDisplay(); // Show initial balance in USD
 
     function startGame() {
-        betAmount = parseFloat(document.getElementById('betAmount').value);
+        // Get the bet amount in USD and selected cryptocurrency
+        betAmountUSD = parseFloat(document.getElementById('betAmountUSD').value);
+        selectedCurrency = document.getElementById('currencySelect').value;
 
-        if (isNaN(betAmount) || betAmount <= 0) {
-            statusText.textContent = 'Please enter a valid bet amount.';
+        // Validate the input
+        if (isNaN(betAmountUSD) || betAmountUSD <= 0) {
+            statusText.textContent = 'Please enter a valid bet amount in USD.';
             return;
         }
 
-        if (betAmount > balance) {
+        if (betAmountUSD > balance) {
             statusText.textContent = 'Insufficient balance.';
             return;
+        }
+
+        // Convert the USD amount to the selected cryptocurrency
+        if (selectedCurrency === 'BTC') {
+            betAmountCrypto = betAmountUSD / BTC_RATE;  // USD to BTC
+            currentBalanceCrypto = balance / BTC_RATE; // Update balance in BTC
+        } else if (selectedCurrency === 'ETH') {
+            betAmountCrypto = betAmountUSD / ETH_RATE;  // USD to ETH
+            currentBalanceCrypto = balance / ETH_RATE; // Update balance in ETH
         }
 
         multiplier = 1.00;
@@ -91,6 +130,7 @@
 
         document.getElementById('placeBtn').style.display = 'none';
         document.getElementById('cashOutBtn').style.display = 'inline-block';
+        document.getElementById('withdrawBtn').style.display = 'inline-block'; // Show withdraw button
         statusText.textContent = `Game started. Try to cash out before it crashes! (Crash at ${crashPoint}x)`;
 
         // Start flight animation
@@ -113,8 +153,10 @@
         if (!isPlaying || hasCashedOut) return;
 
         hasCashedOut = true;
-        const winnings = betAmount * multiplier;
-        balance += winnings - betAmount;
+        const winningsCrypto = betAmountCrypto * multiplier;
+
+        // Add the winnings to current balance in crypto
+        currentBalanceCrypto += winningsCrypto;
 
         endGame(true);
     }
@@ -124,18 +166,43 @@
         isPlaying = false;
         document.getElementById('cashOutBtn').style.display = 'none';
         document.getElementById('placeBtn').style.display = 'inline-block';
+        document.getElementById('withdrawBtn').style.display = 'inline-block'; // Show withdraw button
         multiplierText.textContent = `Multiplier: ${multiplier.toFixed(2)}x`;
 
         if (cashedOut) {
-            statusText.textContent = `You cashed out at ${multiplier.toFixed(2)}x! Winnings: $${(betAmount * multiplier).toFixed(2)}`;
+            statusText.textContent = `You cashed out at ${multiplier.toFixed(2)}x! Winnings: ${currentBalanceCrypto.toFixed(6)} ${selectedCurrency}`;
         } else {
-            balance -= betAmount;
-            statusText.textContent = `Crashed at ${multiplier.toFixed(2)}x. You lost $${betAmount.toFixed(2)}.`;
+            balance -= betAmountUSD;
+            statusText.textContent = `Crashed at ${multiplier.toFixed(2)}x. You lost ${betAmountUSD.toFixed(2)} USD.`;
         }
 
-        const convertedBTC = balance / BTC_RATE;
-        balanceDisplay.textContent = `$${balance.toFixed(2)}`;
+        updateBalanceDisplay(); // Show updated balance in the selected currency
+    }
+
+    // Withdraw function to convert the crypto balance back to USD
+    function withdraw() {
+        let withdrawAmountUSD;
+
+        if (selectedCurrency === 'BTC') {
+            withdrawAmountUSD = currentBalanceCrypto * BTC_RATE; // Convert BTC back to USD
+        } else if (selectedCurrency === 'ETH') {
+            withdrawAmountUSD = currentBalanceCrypto * ETH_RATE; // Convert ETH back to USD
+        }
+
+        // Update balance with the USD equivalent
+        balance = withdrawAmountUSD;
+        currentBalanceCrypto = 0; // Reset the crypto balance
+
+        // Hide withdraw button and show the updated USD balance
+        document.getElementById('withdrawBtn').style.display = 'none';
+
+        // Update balance display to USD
+        selectedCurrency = 'USD';
+        updateBalanceDisplay();
+
+        statusText.textContent = `You have successfully withdrawn $${withdrawAmountUSD.toFixed(2)}.`;
     }
 </script>
+
 </body>
 </html>
