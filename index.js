@@ -17,48 +17,19 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => console.log('MongoDB connected'))
+const mongoose = require('mongoose');
+
+mongoose.connect('mongodb+srv://saitejadasari:Engineer17@cluster0.dpk9pda.mongodb.net/CryptoCrash?retryWrites=true&w=majority')
+
+  .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Routes
+
 app.use('/api/game', gameRoutes);
 app.use('/api/player', playerRoutes);
 
-// WebSocket connection for game
-io.on('connection', (socket) => {
-  console.log('A user connected');
-  
-  // Emit multiplier value when the user connects
-  socket.emit('message', JSON.stringify({ type: 'multiplier', value: 1.00 }));
-
-  socket.on('message', (msg) => {
-    const data = JSON.parse(msg);
-
-    // Handle bet placement
-    if (data.type === 'bet') {
-      console.log(`Bet placed: ${data.amount}`);
-      // Place bet logic
-    }
-
-    // Handle cashout request
-    if (data.type === 'cashout') {
-      console.log('Cash out requested');
-      // Handle cashout logic
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('A user disconnected');
-  });
-});
+initGameEngine(io);
 
 server.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}`);
 });
-
-// Initialize game engine if needed
-initGameEngine(io);
