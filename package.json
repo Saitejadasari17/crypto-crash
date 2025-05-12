@@ -3,10 +3,18 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "Backend for crash game using Node.js, MongoDB, and WebSockets.",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "mongoose": "^8.14.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  }
 }
