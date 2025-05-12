@@ -1,28 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Crypto Crash</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; }
+    #multiplier { font-size: 3rem; margin: 1rem 0; color: green; }
+    #betForm { margin: 1rem; }
+    #betAmount { padding: 0.5rem; }
+    #cashOutBtn { padding: 0.5rem 2rem; margin-top: 1rem; }
+    #result { font-size: 1.2rem; margin-top: 1rem; color: blue; }
+  </style>
 </head>
 <body>
   <h1>Crypto Crash Game</h1>
-  <p id="status">Status: Not connected</p>
+  <p id="status">Status: Connecting...</p>
+  <p id="multiplier">Multiplier: x1.00</p>
+  <form id="betForm">
+    <input type="number" id="betAmount" placeholder="Enter your bet" required min="1"/>
+    <button type="submit">Place Bet</button>
+  </form>
+  <button id="cashOutBtn" disabled>Cash Out</button>
+  <p id="result"></p>
 
-  <!-- Load Socket.IO client -->
-  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    const socket = new WebSocket(`ws://${window.location.host}`);
 
-    socket.on('connect', () => {
+    socket.onopen = () => {
       document.getElementById('status').textContent = 'Status: Connected!';
-    });
+    };
 
-    socket.on('message', (msg) => {
-      console.log('Message from server:', msg);
-    });
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
 
-    socket.on('disconnect', () => {
-      document.getElementById('status').textContent = 'Status: Disconnected';
-    });
+      // Handle the multiplier update
+      if (data.type === 'multiplier') {
+        const multiplier = data.value.toFixed(2);
+        document.getElementById('multiplier').textContent = `Multiplier: x${multiplier}`;
+      }
+
+      // Handle result after cash out or game end
+      if (data.type === 'result') {
+        document.getElementById('result').textContent = data.message;
+        document.getElementById('cashOutBtn').disabled = true;
+      }
+    };
+
+    // Handle placing a bet
+    document.getElementById('betForm').onsubmit = (e) => {
+      e.preventDefault();
+      const betAmount = parseFloat(document.getElementById('betAmount').value);
+      socket.send(JSON.stringify({ type: 'bet', amount: betAmount }));
+      document.getElementById('cashOutBtn').disabled = false;
+      document.getElementById('result').textContent = '';  // Reset result
+    };
+
+    // Handle cashing out
+    document.getElementById('cashOutBtn').onclick = () => {
+      socket.send(JSON.stringify({ type: 'cashout' }));
+    };
   </script>
 </body>
 </html>
